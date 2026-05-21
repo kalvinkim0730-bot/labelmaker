@@ -10,6 +10,7 @@ from io import BytesIO
 import urllib.request
 import os
 
+# [강제 진압 1] 글꼴 다운로드 캐시만 남기고, 데이터와 관련된 모든 캐시 데코레이터 완전 제거
 @st.cache_resource
 def load_korean_font():
     font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf"
@@ -25,18 +26,22 @@ def load_korean_font():
         return "Helvetica-Bold"
 
 st.set_page_config(page_title="Label Generator", layout="wide")
-st.title("🏷️ Carton Label App")
+st.title("🏷️ 카톤 라벨 생성기")
 
 k_font = load_korean_font()
 
-uploaded_file = st.file_uploader("Upload Excel File (.xlsx)", type=['xlsx'])
+# [강제 진압 2] 파일 업로더가 바뀔 때마다 하위 연산들이 완벽하게 리셋되도록 셋팅
+uploaded_file = st.file_uploader("Upload Excel File (.xlsx)", type=['xlsx'], key="live_excel_uploader")
 
 if uploaded_file:
+    # 매번 메모리를 새로 뚫어서 엑셀 파일의 바이너리를 상시 실시간으로 읽음
+    uploaded_file.seek(0)
     df = pd.read_excel(uploaded_file)
-    st.write("### 1. Data Preview")
+    
+    st.write("### 1. Data Preview (실시간 동기화 완료)")
     st.dataframe(df.head())
 
-    if st.button("🚀 Generate 100x80mm PDF"):
+    if st.button("🚀 Generate 100x80mm PDF", use_container_width=True):
         buffer = BytesIO()
         width, height = 4*inch, 3*inch
         c = canvas.Canvas(buffer, pagesize=(width, height))
@@ -103,4 +108,10 @@ if uploaded_file:
         final_filename = f"{','.join(unique_codes)}_carton label.pdf"
         
         st.success(f"Success! File: {final_filename}")
-        st.download_button("📥 Download Final PDF", buffer.getvalue(), final_filename, "application/pdf")
+        st.download_button(
+            label="📥 Download Final PDF",
+            data=buffer.getvalue(),
+            file_name=final_filename,
+            mime="application/pdf",
+            use_container_width=True
+        )
